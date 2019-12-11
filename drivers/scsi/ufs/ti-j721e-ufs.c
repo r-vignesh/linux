@@ -13,6 +13,7 @@
 
 #define TI_UFS_SS_CTRL		0x4
 #define TI_UFS_SS_RST_N_PCS	BIT(0)
+#define TI_UFS_SS_LA_SA_SEL	BIT(1)
 #define TI_UFS_SS_CLK_26MHZ	BIT(4)
 
 static int ti_j721e_ufs_probe(struct platform_device *pdev)
@@ -45,6 +46,12 @@ static int ti_j721e_ufs_probe(struct platform_device *pdev)
 	if (clk_rate == 26000000)
 		reg |= TI_UFS_SS_CLK_26MHZ;
 	devm_clk_put(dev, clk);
+
+	/*
+	 * Select Large Amplitude setting for MPHY as recommended by UFS
+	 * standard.
+	 */
+	reg |= TI_UFS_SS_LA_SA_SEL;
 
 	/*  Take UFS slave device out of reset */
 	reg |= TI_UFS_SS_RST_N_PCS;
