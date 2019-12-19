@@ -1100,15 +1100,6 @@ int arm_dma_supported(struct device *dev, u64 mask)
 
 static const struct dma_map_ops *arm_get_dma_map_ops(bool coherent)
 {
-	/*
-	 * When CONFIG_ARM_LPAE is set, physical address can extend above
-	 * 32-bits, which then can't be addressed by devices that only support
-	 * 32-bit DMA.
-	 * Use the generic dma-direct / swiotlb ops code in that case, as that
-	 * handles bounce buffering for us.
-	 */
-	if (IS_ENABLED(CONFIG_ARM_LPAE))
-		return NULL;
 	return coherent ? &arm_coherent_dma_ops : &arm_dma_ops;
 }
 
@@ -2313,6 +2304,15 @@ void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 
 	if (arm_setup_iommu_dma_ops(dev, dma_base, size, iommu))
 		dma_ops = arm_get_iommu_dma_map_ops(coherent);
+	else if (IS_ENABLED(CONFIG_ARM_LPAE) && !dev->dma_pfn_offset)
+		/*
+		 * When CONFIG_ARM_LPAE is set, physical address can extend
+		 * above * 32-bits, which then can't be addressed by devices
+		 * that only support 32-bit DMA.
+		 * Use the generic dma-direct / swiotlb ops code in that case,
+		 * as that handles bounce buffering for us.
+		 */
+		dma_ops = NULL;
 	else
 		dma_ops = arm_get_dma_map_ops(coherent);
 
