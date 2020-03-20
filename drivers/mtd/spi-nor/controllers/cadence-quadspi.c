@@ -77,11 +77,7 @@ struct cqspi_st {
 	dma_addr_t		mmap_phys_base;
 
 	int			current_cs;
-	int			current_page_size;
-	int			current_erase_size;
-	int			current_addr_width;
 	unsigned long		master_ref_clk_hz;
-	bool			is_decoded_cs;
 	u32			fifo_depth;
 	u32			fifo_width;
 	bool			rclk_en;
@@ -715,51 +711,21 @@ static void cqspi_chipselect(struct spi_nor *nor)
 	unsigned int reg;
 
 	reg = readl(reg_base + CQSPI_REG_CONFIG);
-	if (cqspi->is_decoded_cs) {
-		reg |= CQSPI_REG_CONFIG_DECODE_MASK;
-	} else {
-		reg &= ~CQSPI_REG_CONFIG_DECODE_MASK;
+	reg &= ~CQSPI_REG_CONFIG_DECODE_MASK;
 
-		/* Convert CS if without decoder.
-		 * CS0 to 4b'1110
-		 * CS1 to 4b'1101
-		 * CS2 to 4b'1011
-		 * CS3 to 4b'0111
-		 */
-		chip_select = 0xF & ~(1 << chip_select);
-	}
+	/* Convert CS if without decoder.
+	 * CS0 to 4b'1110
+	 * CS1 to 4b'1101
+	 * CS2 to 4b'1011
+	 * CS3 to 4b'0111
+	 */
+	chip_select = 0xF & ~(1 << chip_select);
 
 	reg &= ~(CQSPI_REG_CONFIG_CHIPSELECT_MASK
 		 << CQSPI_REG_CONFIG_CHIPSELECT_LSB);
 	reg |= (chip_select & CQSPI_REG_CONFIG_CHIPSELECT_MASK)
 	    << CQSPI_REG_CONFIG_CHIPSELECT_LSB;
 	writel(reg, reg_base + CQSPI_REG_CONFIG);
-}
-
-static void cqspi_configure_cs_and_sizes(struct spi_nor *nor)
-{
-	struct cqspi_flash_pdata *f_pdata = nor->priv;
-	struct cqspi_st *cqspi = f_pdata->cqspi;
-	void __iomem *iobase = cqspi->iobase;
-	unsigned int reg;
-
-	/* configure page size and block size. */
-	reg = readl(iobase + CQSPI_REG_SIZE);
-	reg &= ~(CQSPI_REG_SIZE_PAGE_MASK << CQSPI_REG_SIZE_PAGE_LSB);
-	reg &= ~(CQSPI_REG_SIZE_BLOCK_MASK << CQSPI_REG_SIZE_BLOCK_LSB);
-	reg &= ~CQSPI_REG_SIZE_ADDRESS_MASK;
-	reg |= (nor->page_size << CQSPI_REG_SIZE_PAGE_LSB);
-	reg |= (ilog2(nor->mtd.erasesize) << CQSPI_REG_SIZE_BLOCK_LSB);
-	reg |= (nor->addr_width - 1);
-	writel(reg, iobase + CQSPI_REG_SIZE);
-
-	/* configure the chip select */
-	cqspi_chipselect(nor);
-
-	/* Store the new configuration of the controller */
-	cqspi->current_page_size = nor->page_size;
-	cqspi->current_erase_size = nor->mtd.erasesize;
-	cqspi->current_addr_width = nor->addr_width;
 }
 
 static unsigned int calculate_ticks_for_ns(const unsigned int ref_clk_hz,
@@ -867,18 +833,13 @@ static void cqspi_configure(struct spi_nor *nor)
 	int switch_cs = (cqspi->current_cs != f_pdata->cs);
 	int switch_ck = (cqspi->sclk != sclk);
 
-	if ((cqspi->current_page_size != nor->page_size) ||
-	    (cqspi->current_erase_size != nor->mtd.erasesize) ||
-	    (cqspi->current_addr_width != nor->addr_width))
-		switch_cs = 1;
-
 	if (switch_cs || switch_ck)
 		cqspi_controller_enable(cqspi, 0);
 
 	/* Switch chip select. */
 	if (switch_cs) {
 		cqspi->current_cs = f_pdata->cs;
-		cqspi_configure_cs_and_sizes(nor);
+		cqspi_chipselect(nor);
 	}
 
 	/* Setup baudrate divisor and delays */
@@ -1144,8 +1105,6 @@ static int cqspi_of_get_pdata(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct cqspi_st *cqspi = platform_get_drvdata(pdev);
-
-	cqspi->is_decoded_cs = of_property_read_bool(np, "cdns,is-decoded-cs");
 
 	if (of_property_read_u32(np, "cdns,fifo-depth", &cqspi->fifo_depth)) {
 		dev_err(&pdev->dev, "couldn't determine fifo-depth\n");
