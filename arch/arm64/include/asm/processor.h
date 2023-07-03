@@ -408,6 +408,12 @@ long get_tagged_addr_ctrl(struct task_struct *task);
  */
 #define current_top_of_stack()	((unsigned long)current->stack + THREAD_SIZE)
 #define on_thread_stack()	(on_task_stack(current, current_stack_pointer, 1))
+void __cpu_relax(unsigned long pc);
+
+static __always_inline void cpu_relax(void)
+{
+       __cpu_relax(_THIS_IP_);
+}
 
 #endif /* __ASSEMBLY__ */
 #endif /* __ASM_PROCESSOR_H */

@@ -7,10 +7,12 @@
 
 #ifndef __ASSEMBLY__
 
-static inline void cpu_relax(void)
+static inline void vdso_cpu_relax(void)
 {
 	asm volatile("yield" ::: "memory");
 }
+#define vdso_cpu_relax	vdso_cpu_relax
+
 
 #endif /* __ASSEMBLY__ */
 

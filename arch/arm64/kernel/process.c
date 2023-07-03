@@ -755,3 +755,18 @@ int arch_elf_adjust_prot(int prot, const struct arch_elf_state *state,
 	return prot;
 }
 #endif
+
+static DEFINE_PER_CPU(unsigned long, __cpu_relax_data);
+void __cpu_relax(unsigned long pc)
+{
+	unsigned long old_pc = raw_cpu_read(__cpu_relax_data);
+
+
+	if (old_pc == pc && arch_timer_evtstrm_available()) {
+		asm volatile("sevl; wfe; wfe\n" ::: "memory");
+	} else {
+		this_cpu_cmpxchg(__cpu_relax_data, old_pc, pc);
+		asm volatile("yield" ::: "memory");
+	}
+}
+EXPORT_SYMBOL(__cpu_relax);
