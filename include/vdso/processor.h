@@ -9,6 +9,10 @@
 
 #include <asm/vdso/processor.h>
 
+#ifndef vdso_cpu_relax
+#define vdso_cpu_relax cpu_relax
+#endif
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* __VDSO_PROCESSOR_H */

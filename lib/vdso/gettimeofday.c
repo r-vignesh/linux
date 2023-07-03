@@ -134,7 +134,7 @@ static __always_inline int do_hres(const struct vdso_data *vd, clockid_t clk,
 			if (IS_ENABLED(CONFIG_TIME_NS) &&
 			    vd->clock_mode == VDSO_CLOCKMODE_TIMENS)
 				return do_hres_timens(vd, clk, ts);
-			cpu_relax();
+			vdso_cpu_relax();
 		}
 		smp_rmb();
 
@@ -213,7 +213,7 @@ static __always_inline int do_coarse(const struct vdso_data *vd, clockid_t clk,
 			if (IS_ENABLED(CONFIG_TIME_NS) &&
 			    vd->clock_mode == VDSO_CLOCKMODE_TIMENS)
 				return do_coarse_timens(vd, clk, ts);
-			cpu_relax();
+			vdso_cpu_relax();
 		}
 		smp_rmb();
 

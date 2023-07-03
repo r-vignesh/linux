@@ -11,7 +11,7 @@ static __always_inline u32 vdso_read_begin(const struct vdso_data *vd)
 	u32 seq;
 
 	while (unlikely((seq = READ_ONCE(vd->seq)) & 1))
-		cpu_relax();
+		vdso_cpu_relax();
 
 	smp_rmb();
 	return seq;
