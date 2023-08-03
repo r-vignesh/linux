@@ -756,17 +756,27 @@ int arch_elf_adjust_prot(int prot, const struct arch_elf_state *state,
 }
 #endif
 
-static DEFINE_PER_CPU(unsigned long, __cpu_relax_data);
+static DEFINE_PER_CPU(u64, __cpu_relax_data);
+
+#define CPU_RELAX_WFE_THRESHOLD        10000
 void __cpu_relax(unsigned long pc)
 {
-	unsigned long old_pc = raw_cpu_read(__cpu_relax_data);
+	u64 new, old = raw_cpu_read(__cpu_relax_data);
+	u32 old_pc, new_pc;
+	bool wfe = false;
 
+	old_pc = (u32)old;
+	new = new_pc = (u32)pc;
 
-	if (old_pc == pc && arch_timer_evtstrm_available()) {
-		asm volatile("sevl; wfe; wfe\n" ::: "memory");
-	} else {
-		this_cpu_cmpxchg(__cpu_relax_data, old_pc, pc);
-		asm volatile("yield" ::: "memory");
+	if ((old_pc == new_pc) && arch_timer_evtstrm_available()) {
+		if ((old >> 32) > CPU_RELAX_WFE_THRESHOLD) {
+			asm volatile("sevl; wfe; wfe\n" ::: "memory");
+			wfe = true;
+		} else {
+			new = old + (1UL << 32);
+		}
 	}
+       if (this_cpu_cmpxchg(__cpu_relax_data, old, new) == old && !wfe)
+		asm volatile("yield" ::: "memory");
 }
 EXPORT_SYMBOL(__cpu_relax);
