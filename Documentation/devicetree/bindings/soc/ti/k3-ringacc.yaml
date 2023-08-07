@@ -39,6 +39,7 @@ properties:
       - description: fifos registers regions
       - description: proxy gcfg registers regions
       - description: proxy target registers regions
+      - description: configuration registers region
 
   reg-names:
     items:
@@ -46,6 +47,7 @@ properties:
       - const: fifos
       - const: proxy_gcfg
       - const: proxy_target
+      - const: cfg
 
   msi-parent: true
 
